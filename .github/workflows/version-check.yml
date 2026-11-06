@@ -1,0 +1,84 @@
+name: Check upstream version
+
+# Polls upstream for the newest qBittorrent release and opens a PR into dev
+# bumping the pinned VERSION build arg. Merging the PR runs CI; the next
+# dev -> main promotion releases it.
+
+on:
+  schedule:
+    - cron: "30 7 * * *"
+  workflow_dispatch: {}
+
+permissions: {}
+
+concurrency:
+  group: version-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    permissions:
+      contents: write # push the bump branch
+      pull-requests: write # open the bump PR
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Resolve latest upstream version
+        id: up
+        run: |
+          set -euo pipefail
+          latest="$(gh api repos/qbittorrent/qBittorrent/releases/latest --jq .tag_name)"
+          latest="${latest#release-}"
+          if ! printf '%s' "$latest" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Unexpected version from upstream: '$latest'"; exit 1
+          fi
+
+          current="$(sed -n 's/^ARG VERSION="\([^"]*\)".*/\1/p' Dockerfile | head -n1)"
+          if [ -z "$current" ]; then
+            echo "::error::Could not parse current VERSION from Dockerfile"; exit 1
+          fi
+
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest"   >> "$GITHUB_OUTPUT"
+          if [ "$latest" = "$current" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already on latest ($current)"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Bump available: $current -> $latest"
+          fi
+
+      - name: Update Dockerfile
+        if: steps.up.outputs.changed == 'true'
+        env:
+          LATEST: ${{ steps.up.outputs.latest }}
+        run: |
+          set -euo pipefail
+          sed -i -E "s|^(ARG VERSION=\")[^\"]+(\".*)$|\1${LATEST}\2|" Dockerfile
+          git --no-pager diff -- Dockerfile
+
+      - name: Open pull request
+        if: steps.up.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          base: dev
+          branch: bump/${{ steps.up.outputs.latest }}
+          delete-branch: true
+          commit-message: "Bump qBittorrent to ${{ steps.up.outputs.latest }}"
+          title: "Bump qBittorrent to ${{ steps.up.outputs.latest }}"
+          body: |
+            Automated upstream version bump.
+
+            | | Version |
+            | --- | --- |
+            | Current | `${{ steps.up.outputs.current }}` |
+            | Latest | `${{ steps.up.outputs.latest }}` |
+
+            Source: GitHub releases of `qbittorrent/qBittorrent` (tag `release-X.Y.Z`)
+          labels: |
+            qbittorrent-nox
+            automated

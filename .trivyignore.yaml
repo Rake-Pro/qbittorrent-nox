@@ -1,0 +1,10 @@
+# Trivy ignore list shared by the CI preview, the release gate (CRITICAL,
+# ignore-unfixed) and the weekly rescan (CRITICAL,HIGH). Every entry is scoped
+# to specific files and expires; when an entry expires the scan fails again and
+# the bump must be real. Format:
+#
+#   - id: CVE-XXXX-YYYY
+#     paths: [app/bin/Example.deps.json]
+#     statement: "why this is accepted and what retires it"
+#     expired_at: YYYY-MM-DD
+vulnerabilities: []

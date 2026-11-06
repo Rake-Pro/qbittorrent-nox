@@ -1,0 +1,73 @@
+name: CI
+
+# No paths filters: the "build" check is required on dev -> main promotion PRs, so it
+# must exist on every dev SHA - a filtered-out push would block promotion.
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Extract upstream version from Dockerfile
+        id: ver
+        run: |
+          version="$(sed -n 's/^ARG VERSION="\([^"]*\)".*/\1/p' Dockerfile | head -n1)"
+          if [ -z "$version" ]; then echo "::error::Could not parse VERSION from Dockerfile"; exit 1; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # Validation only: the image is built but never pushed. Runs on every push
+      # to dev so the check lands on the SHA the dev -> main PR points at.
+      - name: Build (no push)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          load: true
+          provenance: false
+          tags: qbittorrent-nox:ci
+          build-args: |
+            VERSION=${{ steps.ver.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Contract checks: the user the image starts as, the init, and the
+      # application binary being present and runnable.
+      - name: Smoke test image contract
+        run: |
+          set -euo pipefail
+          run() { docker run --rm --entrypoint /bin/sh qbittorrent-nox:ci -c "$1"; }
+          run 'test "$(id -u):$(id -g)" = "65534:65534"'
+          run 'test -x /usr/bin/catatonit && test -x /entrypoint.sh'
+          run '/usr/bin/qbittorrent-nox --version'
+          run 'head -5 /sbom.txt'
+
+      # Same gate the release applies, so a dev push that would fail the
+      # release is red here first.
+      - name: Trivy scan (release gate preview)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_IGNOREFILE: .trivyignore.yaml
+        with:
+          image-ref: qbittorrent-nox:ci
+          exit-code: '1'
+          severity: CRITICAL
+          ignore-unfixed: true
