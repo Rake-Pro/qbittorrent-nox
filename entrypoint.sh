@@ -1,8 +1,21 @@
 #!/bin/sh
 set -eu
 
+umask "${UMASK:-022}"
+
 lock="/config/qBittorrent/lockfile"
 logdir="/config/qBittorrent/logs"
+
+# Optional first-boot hooks: every executable file mounted at
+# /custom-cont-init.d runs here, as this user, before qBittorrent starts
+# (same mount path the previous image used, no root involved).
+if [ -d /custom-cont-init.d ]; then
+    for hook in /custom-cont-init.d/*; do
+        [ -f "$hook" ] || continue
+        echo "Running init hook: $hook"
+        sh "$hook"
+    done
+fi
 
 # A lockfile left by an unclean stop blocks startup.
 if [ -f "$lock" ]; then
