@@ -2,12 +2,14 @@
 
 # qbittorrent-nox built from source on the shared Alpine base, rootless from
 # the first process. Follows the official docker-qbittorrent-nox recipe
-# (static libtorrent, Qt from Alpine packages); libtorrent 1.2 (RC_1_2) is the
-# default because the deployments that consume this image are seed-heavy.
+# (static libtorrent, Qt from Alpine packages); libtorrent 1.2 is the default
+# because the deployments that consume this image are seed-heavy. The 1.2 line
+# still uses boost::asio::io_service, which Boost removed in 1.87, so Boost
+# stays on 1.86 until the libtorrent 2 line is adopted.
 FROM ghcr.io/rake-pro/alpine-base:1.0@sha256:f62113d237739786f9b4419271e4625f509374576b50c8cb8ea4fc882952d168 AS build
 ARG VERSION="5.3.0"
-ARG LIBTORRENT_BRANCH="RC_1_2"
-ARG BOOST_VERSION="1.92.0"
+ARG LIBTORRENT_TAG="v1.2.20"
+ARG BOOST_VERSION="1.86.0"
 
 RUN apk add --no-cache \
         cmake \
@@ -40,7 +42,7 @@ RUN curl -fsSL -o boost.tar.gz \
     && ./b2 stage --stagedir=./ --with-headers
 
 # libtorrent, static.
-RUN git clone --branch "${LIBTORRENT_BRANCH}" --depth 1 --recurse-submodules https://github.com/arvidn/libtorrent.git \
+RUN git clone --branch "${LIBTORRENT_TAG}" --depth 1 --recurse-submodules https://github.com/arvidn/libtorrent.git \
     && cd libtorrent \
     && cmake -B build -G Ninja \
         -DBUILD_SHARED_LIBS=OFF \
@@ -67,7 +69,7 @@ RUN curl -fsSL -o qbt.tar.gz "https://github.com/qbittorrent/qBittorrent/archive
     && cmake --build build -j "$(nproc)" \
     && cmake --install build \
     && printf 'qbittorrent-nox build inputs\n\nboost %s\nlibtorrent-rasterbar git %s (%s)\nqBittorrent %s\n\n' \
-        "${BOOST_VERSION}" "$(git -C /src/libtorrent rev-parse HEAD)" "${LIBTORRENT_BRANCH}" "${VERSION}" > /sbom.txt \
+        "${BOOST_VERSION}" "$(git -C /src/libtorrent rev-parse HEAD)" "${LIBTORRENT_TAG}" "${VERSION}" > /sbom.txt \
     && apk list -I | sort >> /sbom.txt
 
 FROM ghcr.io/rake-pro/alpine-base:1.0@sha256:f62113d237739786f9b4419271e4625f509374576b50c8cb8ea4fc882952d168

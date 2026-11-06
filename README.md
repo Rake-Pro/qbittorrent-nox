@@ -50,7 +50,6 @@ docker run -d --name qbittorrent-nox \
 
 ## Notes
 
-- Built from source with libtorrent 1.2 (`RC_1_2`, static) and Qt from Alpine packages, following the official `docker-qbittorrent-nox` recipe. Set `LIBTORRENT_BRANCH=RC_2_1` at build time for libtorrent 2.
-- `WEBUI_PORT` (default 8080) and `TORRENTING_PORT` (unset) are passed as `--webui-port` / `--torrenting-port`; `UMASK` (default 022) is applied by the entrypoint.
-- Executable files mounted at `/custom-cont-init.d` run before qBittorrent starts, as the same user (first-boot seeding of config or categories). No root, no privilege drop.
+- Built from source with libtorrent 1.2 (tag `v1.2.20`, static) on Boost 1.86 and Qt from Alpine packages, following the official `docker-qbittorrent-nox` recipe. Build args `LIBTORRENT_TAG` and `BOOST_VERSION` select the libtorrent line (the 2.x line builds on current Boost).
+- `WEBUI_PORT` (default 8080) and `TORRENTING_PORT` (unset) are passed as `--webui-port` / `--torrenting-port`.
 - `/sbom.txt` in the image lists the build inputs (boost, libtorrent commit, qBittorrent version, Alpine packages).
