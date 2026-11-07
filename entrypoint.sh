@@ -23,10 +23,15 @@ if [ -f "$lock" ]; then
     rm -f "$lock"
 fi
 
-# Mirror the application log to stdout so the container log carries it.
+# Mirror the application log to stdout so the container log carries it. A
+# regular file inherited from another image is kept aside as .prev so the
+# symlink always wins.
 mkdir -p "$logdir"
-if [ ! -e "$logdir/qbittorrent.log" ]; then
-    ln -s /proc/self/fd/1 "$logdir/qbittorrent.log"
+if [ ! -L "$logdir/qbittorrent.log" ]; then
+    if [ -f "$logdir/qbittorrent.log" ]; then
+        mv -f "$logdir/qbittorrent.log" "$logdir/qbittorrent.log.prev"
+    fi
+    ln -sf /proc/self/fd/1 "$logdir/qbittorrent.log"
 fi
 
 set -- --webui-port="${WEBUI_PORT:-8080}" "$@"
