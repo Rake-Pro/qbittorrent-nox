@@ -6,7 +6,7 @@
 # because the deployments that consume this image are seed-heavy. The 1.2 line
 # still uses boost::asio::io_service, which Boost removed in 1.87, so Boost
 # stays on 1.86 until the libtorrent 2 line is adopted.
-FROM ghcr.io/rake-pro/alpine-base:1.0@sha256:73a14e80b779043678834af2c47d6c1c17dc1982733d596fba38bafd1093e5b5 AS build
+FROM ghcr.io/rake-pro/alpine-base:1.0@sha256:13603c44f47bc2163846b1959d16987bc4b85e2fd2fe07d4a0bc618755e8fedb AS build
 ARG VERSION="5.3.0"
 ARG LIBTORRENT_TAG="v1.2.20"
 ARG BOOST_VERSION="1.86.0"
@@ -72,7 +72,7 @@ RUN curl -fsSL -o qbt.tar.gz "https://github.com/qbittorrent/qBittorrent/archive
         "${BOOST_VERSION}" "$(git -C /src/libtorrent rev-parse HEAD)" "${LIBTORRENT_TAG}" "${VERSION}" > /sbom.txt \
     && apk list -I | sort >> /sbom.txt
 
-FROM ghcr.io/rake-pro/alpine-base:1.0@sha256:73a14e80b779043678834af2c47d6c1c17dc1982733d596fba38bafd1093e5b5
+FROM ghcr.io/rake-pro/alpine-base:1.0@sha256:13603c44f47bc2163846b1959d16987bc4b85e2fd2fe07d4a0bc618755e8fedb
 ARG VERSION
 LABEL org.opencontainers.image.source="https://github.com/Rake-Pro/qbittorrent-nox" \
       org.opencontainers.image.version="${VERSION}"
