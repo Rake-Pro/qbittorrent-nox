@@ -7,7 +7,7 @@
 # still uses boost::asio::io_service, which Boost removed in 1.87, so Boost
 # stays on 1.86 until the libtorrent 2 line is adopted.
 FROM ghcr.io/rake-pro/alpine-base:1.0@sha256:13603c44f47bc2163846b1959d16987bc4b85e2fd2fe07d4a0bc618755e8fedb AS build
-ARG VERSION="5.3.0"
+ARG VERSION="5.3.1"
 ARG LIBTORRENT_TAG="v1.2.20"
 ARG BOOST_VERSION="1.86.0"
 
